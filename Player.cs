@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class Player : MonoBehaviour
 {
@@ -14,6 +15,8 @@ public class Player : MonoBehaviour
 
     [Header("Projectile")]
     [SerializeField] GameObject laserPrefab;
+    [SerializeField] GameObject standardLaserPrefab;
+    [SerializeField] GameObject powerUpLaserPrefab;
     [SerializeField] float projectileSpeed = 10f;
     [SerializeField] float projectileFiringPeriod = 0.1f;
 
@@ -25,6 +28,14 @@ public class Player : MonoBehaviour
     [Header("Shooting SFX")]
     [SerializeField] AudioClip laserSFX;
     [SerializeField] [Range(0, 1)] float laserSFXVolume = 0.5f;
+
+
+    [Header("Power Up")]
+    [SerializeField] AudioClip powerUpSFX;
+    [SerializeField] [Range(0, 1)] float powerUpSFXVolume = 0.5f;
+    [SerializeField] GameObject countdownTimer;
+
+    bool activatedPowerUp = true;
 
     
 
@@ -39,6 +50,7 @@ public class Player : MonoBehaviour
     void Start()
     {
         SetUpMoveBoundaries();
+        countdownTimer.SetActive(false);
         
     }
 
@@ -54,9 +66,54 @@ public class Player : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other)
     {
+
+        PowerUp powerUp  = other.gameObject.GetComponent<PowerUp>();
         DamageDealer damageDealer = other.gameObject.GetComponent<DamageDealer>();
-        if (!damageDealer) { return; }
-        ProcessHit(damageDealer);
+
+        if (powerUp)
+        {
+            Destroy(other.gameObject);
+            AudioSource.PlayClipAtPoint(powerUpSFX, Camera.main.transform.position, powerUpSFXVolume); 
+            StartCoroutine(ActivatePowerUp());
+        }
+        
+        else if (damageDealer)
+        {
+            ProcessHit(damageDealer);
+        }
+        
+        if(!powerUp && !damageDealer) { return; }
+        
+    }
+
+    private IEnumerator ActivatePowerUp()
+    {
+        Debug.Log("Powerup Activated");
+        StartCoroutine(StartCountdown());
+        activatedPowerUp = false;
+        projectileFiringPeriod = 0.01f;
+        laserPrefab = powerUpLaserPrefab;
+
+        yield return new WaitForSeconds(5f);
+        laserPrefab = standardLaserPrefab;
+        activatedPowerUp = true;
+        projectileFiringPeriod = 0.1f;
+    }
+
+    IEnumerator StartCountdown()
+    {
+        countdownTimer.SetActive(true);
+        for (int i = 5; i > 0; i--)
+        {
+            countdownTimer.GetComponent<Text>().text = i.ToString();
+            yield return new WaitForSeconds(1);
+        }
+        countdownTimer.SetActive(false);
+    }
+
+    public bool NoActivePowerUp()
+    {
+        return activatedPowerUp;
     }
 
     private void ProcessHit(DamageDealer damageDealer)
